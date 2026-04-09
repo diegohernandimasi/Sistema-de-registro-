@@ -63,6 +63,7 @@ export default function App() {
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editCode, setEditCode] = useState('');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Auth listener
@@ -183,6 +184,7 @@ export default function App() {
     setEditFirstName(reg.firstName);
     setEditLastName(reg.lastName);
     setEditPhone(reg.phone);
+    setEditCode('');
     setIsEditDialogOpen(true);
   };
 
@@ -190,6 +192,11 @@ export default function App() {
     if (!editingReg) return;
     if (!editFirstName || !editLastName || !editPhone) {
       toast.error('Por favor complete todos los campos');
+      return;
+    }
+
+    if (editCode !== '12345678') {
+      toast.error('Código de modificación incorrecto');
       return;
     }
 
@@ -436,6 +443,17 @@ export default function App() {
                 id="editPhone"
                 value={editPhone}
                 onChange={(e) => setEditPhone(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="editCode" className="text-primary font-bold">Código de Seguridad</Label>
+              <Input
+                id="editCode"
+                type="password"
+                placeholder="Ingrese el código para guardar"
+                value={editCode}
+                onChange={(e) => setEditCode(e.target.value)}
+                className="border-primary/50 focus:border-primary"
               />
             </div>
           </div>
