@@ -61,8 +61,13 @@ service cloud.firestore {
       // Allow anyone to create a registration if it's valid
       allow create: if isValidRegistration(request.resource.data);
       
-      // Only admin can update or delete
-      allow update, delete: if isAdmin();
+      // Allow anyone to update if it's a valid registration and immutable fields are unchanged
+      allow update: if isValidRegistration(request.resource.data) &&
+                      request.resource.data.registrationNumber == resource.data.registrationNumber &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      
+      // Only admin can delete
+      allow delete: if isAdmin();
     }
 
     match /counters/{counterId} {

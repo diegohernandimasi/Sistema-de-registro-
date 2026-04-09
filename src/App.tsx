@@ -9,7 +9,8 @@ import {
   doc, 
   runTransaction,
   getDoc,
-  setDoc
+  setDoc,
+  updateDoc
 } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { db, auth, OperationType, handleFirestoreError } from './firebase';
@@ -25,10 +26,19 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger
+} from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserPlus, Users, Phone, User, Hash, Loader2, LogIn, LogOut } from 'lucide-react';
+import { UserPlus, Users, Phone, User, Hash, Loader2, LogIn, LogOut, Edit2, Save } from 'lucide-react';
 
 interface Registration {
   id: string;
@@ -47,6 +57,13 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  
+  // Edit state
+  const [editingReg, setEditingReg] = useState<Registration | null>(null);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Auth listener
   useEffect(() => {
@@ -68,7 +85,6 @@ export default function App() {
         setIsReady(true);
       } catch (error) {
         console.error('Error initializing counter:', error);
-        // If it's a permission error, we use the standard handler
         if (error instanceof Error && error.message.includes('permission')) {
           handleFirestoreError(error, OperationType.WRITE, 'counters/registrations');
         }
@@ -157,6 +173,41 @@ export default function App() {
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'registrations');
       toast.error('Error al procesar el registro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditDialog = (reg: Registration) => {
+    setEditingReg(reg);
+    setEditFirstName(reg.firstName);
+    setEditLastName(reg.lastName);
+    setEditPhone(reg.phone);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingReg) return;
+    if (!editFirstName || !editLastName || !editPhone) {
+      toast.error('Por favor complete todos los campos');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const regRef = doc(db, 'registrations', editingReg.id);
+      await updateDoc(regRef, {
+        firstName: editFirstName,
+        lastName: editLastName,
+        phone: editPhone
+      });
+
+      toast.success('Registro actualizado correctamente');
+      setIsEditDialogOpen(false);
+      setEditingReg(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `registrations/${editingReg.id}`);
+      toast.error('Error al actualizar el registro');
     } finally {
       setLoading(false);
     }
@@ -297,7 +348,7 @@ export default function App() {
                         <TableHead className="w-[80px] text-center"><Hash className="w-4 h-4 mx-auto" /></TableHead>
                         <TableHead>Nombre Completo</TableHead>
                         <TableHead>Teléfono</TableHead>
-                        <TableHead className="text-right">Fecha</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -327,8 +378,15 @@ export default function App() {
                               <TableCell className="text-slate-600 font-mono text-sm">
                                 {reg.phone}
                               </TableCell>
-                              <TableCell className="text-right text-slate-400 text-xs">
-                                {reg.createdAt?.toDate() ? new Date(reg.createdAt.toDate()).toLocaleDateString() : 'Pendiente...'}
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-slate-400 hover:text-primary"
+                                  onClick={() => openEditDialog(reg)}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
                               </TableCell>
                             </motion.tr>
                           ))
@@ -342,6 +400,57 @@ export default function App() {
           </motion.div>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-primary" />
+              Editar Registro #{editingReg?.registrationNumber}
+            </DialogTitle>
+            <DialogDescription>
+              Modifique los datos del registro. El número de registro se mantendrá igual.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="editFirstName">Nombre</Label>
+              <Input
+                id="editFirstName"
+                value={editFirstName}
+                onChange={(e) => setEditFirstName(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="editLastName">Apellido</Label>
+              <Input
+                id="editLastName"
+                value={editLastName}
+                onChange={(e) => setEditLastName(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="editPhone">Teléfono</Label>
+              <Input
+                id="editPhone"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdate} disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Toaster position="top-right" richColors />
     </div>
   );
