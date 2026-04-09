@@ -1,0 +1,5 @@
+{
+  "name": "Sistema de Registros en Tiempo Real",
+  "description": "Aplicación para registrar personas con sincronización en tiempo real y números de registro secuenciales.",
+  "requestFramePermissions": []
+}

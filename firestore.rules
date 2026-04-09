@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: registrations
+    // Fields:
+    //   - firstName: string (required, 1-100 chars)
+    //   - lastName: string (required, 1-100 chars)
+    //   - phone: string (required, 1-20 chars)
+    //   - registrationNumber: number (required, positive)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: counters
+    // Document: registrations
+    // Fields:
+    //   - count: number (required, positive)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "diegohernandimasi@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidRegistration(data) {
+      return data.keys().hasAll(['firstName', 'lastName', 'phone', 'registrationNumber', 'createdAt']) &&
+             data.keys().hasOnly(['firstName', 'lastName', 'phone', 'registrationNumber', 'createdAt']) &&
+             data.firstName is string && data.firstName.size() >= 1 && data.firstName.size() <= 100 &&
+             data.lastName is string && data.lastName.size() >= 1 && data.lastName.size() <= 100 &&
+             data.phone is string && data.phone.size() >= 1 && data.phone.size() <= 20 &&
+             data.registrationNumber is number && data.registrationNumber > 0 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidCounter(data) {
+      return data.keys().hasAll(['count']) &&
+             data.keys().hasOnly(['count']) &&
+             data.count is number && data.count >= 0;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /registrations/{registrationId} {
+      // Allow anyone to read registrations (public list)
+      allow read: if true;
+      
+      // Allow anyone to create a registration if it's valid
+      allow create: if isValidRegistration(request.resource.data);
+      
+      // Only admin can update or delete
+      allow update, delete: if isAdmin();
+    }
+
+    match /counters/{counterId} {
+      allow read: if true;
+      
+      // Allow anyone to create the counter if it starts at 0
+      allow create: if counterId == 'registrations' && 
+                      isValidCounter(request.resource.data) && 
+                      request.resource.data.count == 0;
+      
+      // Allow anyone to update the counter if it's a valid increment
+      allow update: if counterId == 'registrations' &&
+                      isValidCounter(request.resource.data) &&
+                      request.resource.data.count == resource.data.count + 1;
+                      
+      // Only admin can delete counters
+      allow delete: if isAdmin();
+    }
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+  }
+}

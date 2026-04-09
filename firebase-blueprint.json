@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "Registration": {
+      "title": "Registration",
+      "description": "A registration record with person details and a unique registration number.",
+      "type": "object",
+      "properties": {
+        "firstName": {
+          "type": "string",
+          "description": "The person's first name."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The person's last name."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The person's phone number."
+        },
+        "registrationNumber": {
+          "type": "number",
+          "description": "A unique sequential registration number."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the registration was created."
+        }
+      },
+      "required": ["firstName", "lastName", "phone", "registrationNumber", "createdAt"]
+    },
+    "Counter": {
+      "title": "Counter",
+      "description": "A counter to keep track of the next registration number.",
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "number",
+          "description": "The current count."
+        }
+      },
+      "required": ["count"]
+    }
+  },
+  "firestore": {
+    "/registrations/{registrationId}": {
+      "schema": "Registration",
+      "description": "Collection of all registrations."
+    },
+    "/counters/registrations": {
+      "schema": "Counter",
+      "description": "Document to store the sequential registration number counter."
+    }
+  }
+}
